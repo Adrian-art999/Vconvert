@@ -1,0 +1,20 @@
+{
+  "name": "vconvert-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API para descargar audio y video de YouTube",
+  "type": "module",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^5.0.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
