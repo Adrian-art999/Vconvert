@@ -3,14 +3,22 @@ import { pipeline } from 'node:stream/promises';
 
 const ytdl = new Ytdl();
 
-function parseYouTubeUrl(value) {
+function extractVideoId(value) {
   if (typeof value !== 'string') return null;
   const candidate = value.trim();
   if (!candidate) return null;
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) {
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    } catch {
+      return null;
+    }
+  }
+
   try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-    return parseVideoId(parsed.href) ? parsed.href : null;
+    return parseVideoId(candidate) || null;
   } catch {
     return null;
   }
@@ -86,14 +94,14 @@ function sendError(res, status, message) {
 }
 
 export async function getInfo(req, res) {
-  const url = parseYouTubeUrl(req.query.url);
-  if (!url) {
+  const videoId = extractVideoId(req.query.url);
+  if (!videoId) {
     sendError(res, 400, 'La URL de YouTube no es valida');
     return;
   }
 
   try {
-    const info = await ytdl.getInfo(url);
+    const info = await ytdl.getInfo(videoId);
     const details = info.videoDetails;
     const formats = info.formats
       .filter((format) => (format.hasAudio || format.hasVideo) && !format.isDrm && !format.isOtf)
@@ -110,8 +118,8 @@ export async function getInfo(req, res) {
       isLive: Boolean(details.isLive),
       formats,
       download: {
-        audio: `/api/download?url=${encodeURIComponent(url)}&type=audio`,
-        video: `/api/download?url=${encodeURIComponent(url)}&type=video`
+        audio: `/api/download?url=${encodeURIComponent(videoId)}&type=audio`,
+        video: `/api/download?url=${encodeURIComponent(videoId)}&type=video`
       }
     });
   } catch (error) {
@@ -121,8 +129,8 @@ export async function getInfo(req, res) {
 }
 
 export async function download(req, res) {
-  const url = parseYouTubeUrl(req.query.url);
-  if (!url) {
+  const videoId = extractVideoId(req.query.url);
+  if (!videoId) {
     sendError(res, 400, 'La URL de YouTube no es valida');
     return;
   }
@@ -133,7 +141,7 @@ export async function download(req, res) {
   let clientClosed = false;
 
   try {
-    const info = await ytdl.getInfo(url);
+    const info = await ytdl.getInfo(videoId);
     if (info.videoDetails.isLive) {
       sendError(res, 409, 'No se pueden descargar transmisiones en vivo');
       return;
